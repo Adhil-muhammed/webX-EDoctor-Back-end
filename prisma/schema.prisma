@@ -13,29 +13,151 @@ datasource db {
   provider = "postgresql"
 }
 
-model User {
-  id    Int    @id @default(autoincrement())
-  email String @unique
-  name  String?
+// ─────────────────────────────────────────────
+// ENUMS
+// ─────────────────────────────────────────────
+
+enum Role {
+  PATIENT
+  PROVIDER
+  ADMIN
 }
 
+enum OtpPurpose {
+  LOGIN        // Standard OTP login
+  REGISTER     // First-time registration confirmation
+  PHONE_CHANGE // Changing phone number
+}
 
+enum OtpStatus {
+  PENDING   // Issued, not yet used
+  VERIFIED  // Successfully verified
+  EXPIRED   // Passed expiry without verification
+  CANCELLED // Superseded by a new OTP request
+}
+
+enum AuditAction {
+  LOGIN_SUCCESS
+  LOGIN_FAILED
+  OTP_REQUESTED
+  OTP_VERIFIED
+  OTP_FAILED
+  OTP_EXPIRED
+  ACCOUNT_DISABLED
+  ACCOUNT_ENABLED
+  PROFILE_UPDATED
+  PASSWORD_CHANGED  // Reserved for future use
+}
+
+// ─────────────────────────────────────────────
+// AUTH — Pure identity table
+// One record per user. Holds phone, role, and
+// account state only. No OTP or audit clutter.
+// ─────────────────────────────────────────────
+
+model Auth {
+  id          String    @id @default(uuid())
+  phone       String    @unique           // Primary login identifier
+  role        Role                        // Determines which profile table to join
+
+  // Account state
+  isVerified  Boolean   @default(false)   // True after first successful OTP
+  isActive    Boolean   @default(true)    // Soft-disable without data loss
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // OTP and audit relations
+  otps        OtpVerification[]
+  auditLogs   AuditLog[]
+
+  // Role-specific profile relations (exactly one will be populated)
+  patient     Patient?
+  provider    Provider?
+  admin       Admin?
+}
+
+// ─────────────────────────────────────────────
+// OTP VERIFICATION — Full OTP lifecycle
+// Each OTP request creates a new row, giving
+// you a full history of all OTP activity.
+// ─────────────────────────────────────────────
+
+model OtpVerification {
+  id          String     @id @default(uuid())
+
+  authId      String
+  auth        Auth       @relation(fields: [authId], references: [id], onDelete: Cascade)
+
+  purpose     OtpPurpose @default(LOGIN)
+
+  // OTP data — NEVER store plaintext. Store a bcrypt/argon2 hash.
+  otpHash     String                       // Hashed OTP code
+  expiresAt   DateTime                     // Short TTL (e.g. 5 minutes)
+  attempts    Int        @default(0)       // Incremented on each failed attempt
+  maxAttempts Int        @default(3)       // Lock after this many failures
+  status      OtpStatus  @default(PENDING)
+
+  // Device / delivery context
+  deliveredTo String                       // Phone number OTP was sent to (snapshot)
+  ipAddress   String?                      // IP at time of request
+  userAgent   String?                      // Browser/device info
+
+  createdAt   DateTime   @default(now())
+  verifiedAt  DateTime?                    // Populated on successful verification
+
+  @@index([authId, status])               // Fast lookup for active OTPs per user
+  @@index([expiresAt])                    // Efficient cleanup of expired records
+}
+
+// ─────────────────────────────────────────────
+// AUDIT LOG — Immutable event trail
+// Records all security-relevant actions.
+// Rows are NEVER updated or deleted.
+// ─────────────────────────────────────────────
+
+model AuditLog {
+  id        String      @id @default(uuid())
+
+  authId    String
+  auth      Auth        @relation(fields: [authId], references: [id], onDelete: Cascade)
+
+  action    AuditAction                   // What happened
+  success   Boolean                       // Outcome of the action
+
+  // Context
+  ipAddress String?                       // IP address of the request
+  userAgent String?                       // Client device/browser
+  metadata  Json?                         // Any extra context (e.g. OTP ID, changed fields)
+
+  createdAt DateTime    @default(now())   // Immutable — no updatedAt
+
+  @@index([authId, action])              // Filter logs by user + action type
+  @@index([createdAt])                   // Time-range queries for admin dashboards
+}
+
+// ─────────────────────────────────────────────
+// PATIENT PROFILE
+// ─────────────────────────────────────────────
 
 model Patient {
   id                 String   @id @default(uuid())
-  phoneNumber        String   @unique // Captured via AuthModule 
-  
-  // Basic Profile 
+
+  // Link to Auth (phone + OTP lives there)
+  authId             String   @unique
+  auth               Auth     @relation(fields: [authId], references: [id])
+
+  // Basic Profile
   name               String?
   age                Int?
   gender             String?
   bloodGroup         String?
-  
+
   // Preferences
-  languagePreference String   @default("English") // Toggle for English and Malayalam 
+  languagePreference String   @default("English") // Toggle for English and Malayalam
 
   // Relations
-  familyMembers      FamilyMember[] // Application logic must limit to 5 
+  familyMembers      FamilyMember[] // Application logic must limit to 5
   healthProfile      HealthProfile?
   digitalRecords     DigitalRecord[]
 }
@@ -76,8 +198,58 @@ model DigitalRecord {
   familyMemberId     String?
   familyMember       FamilyMember? @relation(fields: [familyMemberId], references: [id])
 
-  // Digital Records [cite: 86, 87]
+  // Digital Records
   fileUrl            String   // S3 or GCS URL 
   recordType         String   // e.g., "PRESCRIPTION" or "LAB_REPORT" 
   fileSizeLimit      Int      @default(5242880) // 5MB limit validation reference 
+}
+
+// ─────────────────────────────────────────────
+// PROVIDER PROFILE (Doctors / Clinics)
+// ─────────────────────────────────────────────
+
+model Provider {
+  id                 String   @id @default(uuid())
+
+  // Link to Auth
+  authId             String   @unique
+  auth               Auth     @relation(fields: [authId], references: [id])
+
+  // Professional details
+  name               String
+  specialization     String?
+  qualifications     String[]
+  experience         Int?              // Years of experience
+  registrationNo     String?  @unique  // Medical council registration
+  clinicName         String?
+  clinicAddress      String?
+  consultationFee    Float?
+
+  // Preferences
+  languagePreference String   @default("English")
+
+  // Availability & schedule managed at application layer
+  isAvailable        Boolean  @default(true)
+
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+// ─────────────────────────────────────────────
+// ADMIN PROFILE
+// ─────────────────────────────────────────────
+
+model Admin {
+  id                 String   @id @default(uuid())
+
+  // Link to Auth
+  authId             String   @unique
+  auth               Auth     @relation(fields: [authId], references: [id])
+
+  name               String
+  email              String?  @unique  // Admins may also have email
+  isSuperAdmin       Boolean  @default(false)
+
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 }
