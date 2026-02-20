@@ -1,0 +1,83 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id    Int    @id @default(autoincrement())
+  email String @unique
+  name  String?
+}
+
+
+
+model Patient {
+  id                 String   @id @default(uuid())
+  phoneNumber        String   @unique // Captured via AuthModule 
+  
+  // Basic Profile 
+  name               String?
+  age                Int?
+  gender             String?
+  bloodGroup         String?
+  
+  // Preferences
+  languagePreference String   @default("English") // Toggle for English and Malayalam 
+
+  // Relations
+  familyMembers      FamilyMember[] // Application logic must limit to 5 
+  healthProfile      HealthProfile?
+  digitalRecords     DigitalRecord[]
+}
+
+model FamilyMember {
+  id                 String   @id @default(uuid())
+  patientId          String
+  patient            Patient  @relation(fields: [patientId], references: [id])
+  
+  // Basic Profile 
+  name               String
+  age                Int
+  gender             String
+  bloodGroup         String?
+
+  healthProfile      HealthProfile?
+  digitalRecords     DigitalRecord[]
+}
+
+model HealthProfile {
+  id                 String   @id @default(uuid())
+  patientId          String?  @unique
+  patient            Patient? @relation(fields: [patientId], references: [id])
+  familyMemberId     String?  @unique
+  familyMember       FamilyMember? @relation(fields: [familyMemberId], references: [id])
+
+  // Medical History 
+  allergies          String[] 
+  surgeries          String[] 
+  medications        String[] 
+  emergencyContacts  Json     // Storing as JSON to capture name, relation, and phone number 
+}
+
+model DigitalRecord {
+  id                 String   @id @default(uuid())
+  patientId          String?
+  patient            Patient? @relation(fields: [patientId], references: [id])
+  familyMemberId     String?
+  familyMember       FamilyMember? @relation(fields: [familyMemberId], references: [id])
+
+  // Digital Records [cite: 86, 87]
+  fileUrl            String   // S3 or GCS URL 
+  recordType         String   // e.g., "PRESCRIPTION" or "LAB_REPORT" 
+  fileSizeLimit      Int      @default(5242880) // 5MB limit validation reference 
+}
