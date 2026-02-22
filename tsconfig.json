@@ -1,8 +1,11 @@
 {
   "compilerOptions": {
-    "module": "nodenext",
-    "moduleResolution": "nodenext",
-    "resolvePackageJsonExports": true,
+    // "module": "ESNext",
+    // "moduleResolution": "bundler",
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "target": "ES2023",
+    "strict": true,
     "esModuleInterop": true,
     "isolatedModules": true,
     "declaration": true,
@@ -10,14 +13,13 @@
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
     "allowSyntheticDefaultImports": true,
-    "target": "ES2023",
     "sourceMap": true,
     "outDir": "./dist",
     "baseUrl": "./",
     "paths": {
       "@/*": ["src/*"],
-      "@prisma-client": ["generated/prisma/client"],
-      "@database/*": ["src/database/*"]
+      "@database/*": ["src/database/*"],
+      "@prisma/*": ["generated/prisma/*"]
     },
     "incremental": true,
     "skipLibCheck": true,
@@ -26,5 +28,6 @@
     "noImplicitAny": false,
     "strictBindCallApply": false,
     "noFallthroughCasesInSwitch": false
-  }
+  },
+  "exclude": ["node_modules", "dist"]
 }
