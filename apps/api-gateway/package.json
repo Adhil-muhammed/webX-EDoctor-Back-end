@@ -1,0 +1,32 @@
+{
+  "name": "@ente-doctor/api-gateway",
+  "version": "0.1.0",
+  "description": "Central entry point for routing, SSL termination, and global rate limits.",
+  "private": true,
+  "type": "commonjs",
+  "main": "dist/main.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/main.js",
+    "start:dev": "tsx watch src/main.ts",
+    "lint": "tsc -p tsconfig.json --noEmit",
+    "test": "echo \"No tests configured for @ente-doctor/api-gateway yet\"",
+    "clean": "rimraf dist"
+  },
+  "dependencies": {
+    "@ente-doctor/common": "workspace:*",
+    "@ente-doctor/contracts": "workspace:*",
+    "@ente-doctor/event-bus": "workspace:*",
+    "@nestjs/common": "^11.0.1",
+    "@nestjs/config": "^4.0.3",
+    "@nestjs/core": "^11.0.1",
+    "@nestjs/microservices": "^11.0.1",
+    "@nestjs/platform-express": "^11.0.1",
+    "kafkajs": "^2.2.4",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.1"
+  },
+  "devDependencies": {
+    "rimraf": "^6.0.1"
+  }
+}

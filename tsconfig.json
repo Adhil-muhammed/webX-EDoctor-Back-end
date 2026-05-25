@@ -1,25 +1,32 @@
 {
   "compilerOptions": {
-    "module": "nodenext",
-    "moduleResolution": "nodenext",
-    "resolvePackageJsonExports": true,
-    "esModuleInterop": true,
-    "isolatedModules": true,
-    "declaration": true,
-    "removeComments": true,
-    "emitDecoratorMetadata": true,
-    "experimentalDecorators": true,
-    "allowSyntheticDefaultImports": true,
     "target": "ES2023",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "lib": ["ES2023"],
+    "baseUrl": ".",
+    "paths": {
+      "@ente-doctor/common": ["packages/common/src"],
+      "@ente-doctor/common/*": ["packages/common/src/*"],
+      "@ente-doctor/contracts": ["packages/contracts/src"],
+      "@ente-doctor/contracts/*": ["packages/contracts/src/*"],
+      "@ente-doctor/event-bus": ["packages/event-bus/src"],
+      "@ente-doctor/event-bus/*": ["packages/event-bus/src/*"]
+    },
+    "rootDir": ".",
+    "declaration": true,
+    "declarationMap": true,
     "sourceMap": true,
-    "outDir": "./dist",
-    "baseUrl": "./",
-    "incremental": true,
-    "skipLibCheck": true,
-    "strictNullChecks": true,
+    "outDir": "dist",
+    "strict": true,
+    "noImplicitOverride": true,
+    "noUncheckedIndexedAccess": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
     "forceConsistentCasingInFileNames": true,
-    "noImplicitAny": false,
-    "strictBindCallApply": false,
-    "noFallthroughCasesInSwitch": false
-  }
+    "skipLibCheck": true
+  },
+  "exclude": ["node_modules", "dist"]
 }
