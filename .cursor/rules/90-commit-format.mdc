@@ -1,0 +1,61 @@
+---
+description: "Conventional Commits format used in this repo. Apply whenever drafting a git commit message, opening a pull request title, generating a changelog entry, or asking the user to stage a commit."
+alwaysApply: false
+---
+
+# Conventional Commits
+
+Commitlint and Husky are not yet wired into the repo, but the convention is mandatory. Tooling will enforce it later.
+
+## Format
+
+```
+<type>(<scope>): <summary>
+
+[optional body]
+
+[optional footer]
+```
+
+## Accepted Types
+
+- `feat` — new feature or new domain logic.
+- `fix` — bug fix.
+- `refactor` — restructuring without behavior change.
+- `chore` — build, config, or dependency work.
+- `docs` — documentation only.
+- `test` — adding or updating tests.
+- `ci` — CI/CD pipeline changes.
+
+**Forbidden:** any other type, including `style`, `perf`, `build`, `revert`, `wip`.
+
+## Scope
+
+- **Must** equal the affected workspace name **without** the `@ente-doctor/` prefix.
+- Valid examples: `api-gateway`, `auth-service`, `provider-service`, `booking-service`, `search-service`, `notification-service`, `common`, `contracts`, `event-bus`.
+- A change touching two scopes requires two commits.
+- Repo-wide tooling changes (root `package.json`, `eslint.config.mjs`, `docker-compose.yml`) use scope `repo`.
+
+## Summary Rules
+
+- Lowercase. Imperative mood (`add`, `wire`, `fix` — never `added`, `adds`, `fixed`).
+- No trailing period.
+- Maximum **72** characters.
+
+## Body & Footer
+
+- Body wraps at **100** characters per line.
+- Reference tickets in the footer: `Refs: #123` or `Closes: #456`.
+- Never put ticket references in the summary.
+
+## Reference Example
+
+```
+feat(booking-service): wire CreateBookingUseCase into BookingController
+
+Injects BookingRepository and CreateBookingUseCase as providers in
+BookingServiceModule. Registers BookingController alongside the health
+controller.
+
+Refs: #88
+```

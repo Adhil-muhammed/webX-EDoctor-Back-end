@@ -1,0 +1,33 @@
+---
+globs: packages/**/src/**/*.ts
+alwaysApply: false
+---
+
+# Shared Packages — `@ente-doctor/*`
+
+Source files inside `packages/<name>/src/` are consumed by every service. They must remain lightweight, side-effect free, and free of application logic. Canonical sources: [packages/common/src/index.ts](../../packages/common/src/index.ts), [packages/contracts/src/index.ts](../../packages/contracts/src/index.ts), [packages/event-bus/src/index.ts](../../packages/event-bus/src/index.ts).
+
+## Universal Rules
+
+- **Never** import from `apps/`. Shared packages must not know about specific services.
+- **Never** import I/O clients (HTTP, DB, Kafka producers/consumers).
+- **Never** introduce runtime dependencies. These packages stay zero-dep (the only allowed `devDependency` today is `rimraf`).
+- **Always** re-export public symbols from `src/index.ts`.
+
+## Cross-Package Isolation
+
+- `@ente-doctor/common` must not import from `@ente-doctor/contracts` or `@ente-doctor/event-bus`.
+- `@ente-doctor/contracts` must not import from `@ente-doctor/event-bus`, and vice versa.
+- Cycles across the three packages are forbidden.
+
+## Per-Package Scope
+
+- **`@ente-doctor/common`** — logging primitives (`Logger`, `ConsoleLogger`) and the `DomainError` base class only.
+- **`@ente-doctor/contracts`** — cross-service refs (`PatientRef`, `ProviderRef`), wire DTOs (`BookingDto`, etc.), and the `localization` object. Add new locale keys here; never inline them in services.
+- **`@ente-doctor/event-bus`** — the `EventTopics` const map, the `EventTopic` union, the generic `DomainEvent<TPayload>` envelope, and per-event payload/alias types.
+
+## Typing Discipline
+
+- Mark every interface field `readonly`.
+- Use `as const` for static maps (e.g., `EventTopics`, `localization`).
+- Export type aliases derived from the source object (`type EventTopic = (typeof EventTopics)[keyof typeof EventTopics]`) instead of duplicating string literals.

@@ -1,0 +1,36 @@
+---
+globs: apps/**/src/domain/**/*.ts
+alwaysApply: false
+---
+
+# Domain Layer Purity
+
+The domain layer is the innermost layer and **must remain framework-agnostic**. Reference entity: [apps/booking-service/src/domain/entities/booking.entity.ts](../../apps/booking-service/src/domain/entities/booking.entity.ts). Reference use case: [apps/booking-service/src/domain/use-cases/create-booking.use-case.ts](../../apps/booking-service/src/domain/use-cases/create-booking.use-case.ts).
+
+## Hard Bans Inside `domain/`
+
+- **Never** import from `@nestjs/*`. No decorators, no DI tokens, no Nest types.
+- **Never** import from `infrastructure/`, `entrypoints/`, `config/`, or `app.ts`.
+- **Never** import ORM libraries (Prisma, TypeORM, Drizzle, etc.) or any I/O client.
+- **Never** call `console.*`, `fetch`, `process.env`, or filesystem APIs.
+
+## Entities (`domain/entities/`)
+
+- Define pure TypeScript classes.
+- Store state in a single `private readonly props` field typed by a `<Name>Props` interface.
+- Expose state through public getters; never expose `props` directly.
+- Mark interface fields `readonly`.
+- Domain errors must extend `DomainError` from `@ente-doctor/common` and carry a `code: string`.
+
+## Use Cases (`domain/use-cases/`)
+
+- One use case per file. File name in `kebab-case.use-case.ts`, class in `PascalCase` ending in `UseCase`.
+- Define a `<Name>Command` interface above the class; the `execute` method must accept that command.
+- `execute` returns `Promise<void>` or a typed result. Never `any`.
+- Repositories and adapters are injected through the constructor **as interface types**, never as concrete classes. Define those interfaces here (or alongside the entity) and let `infrastructure/` implement them.
+- **Never** instantiate repositories or adapters inside a use case.
+
+## Shared Package Use
+
+- Allowed: `@ente-doctor/common` (`Logger`, `DomainError`) and `@ente-doctor/contracts` (refs, DTOs, localization).
+- Forbidden: `@ente-doctor/event-bus` here. Topic publishing belongs at the entrypoints or infrastructure layer.

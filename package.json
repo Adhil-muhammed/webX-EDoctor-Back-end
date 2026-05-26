@@ -12,8 +12,8 @@
     "test": "corepack pnpm -r --filter @ente-doctor/* test",
     "clean": "corepack pnpm -r --filter @ente-doctor/* clean",
     "docker:up": "docker compose up -d",
-    "docker:down": "docker compose down",
-    "docker:logs": "docker compose logs -f"
+    "docker:logs": "docker compose logs -f",
+    "docker:down": "docker compose down --rmi all"
   },
   "devDependencies": {
     "@types/node": "^22.10.7",
