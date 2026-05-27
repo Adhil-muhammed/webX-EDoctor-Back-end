@@ -3,6 +3,7 @@ export const EventTopics = {
   slotBlocked: 'slot.blocked',
   providerLeaveCreated: 'provider.leave.created',
   notificationRequested: 'notification.requested',
+  notificationRequestedDlt: 'notification.requested.DLT',
 } as const;
 
 export type EventTopic = (typeof EventTopics)[keyof typeof EventTopics];

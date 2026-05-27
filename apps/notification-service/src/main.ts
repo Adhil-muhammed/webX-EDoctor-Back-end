@@ -5,10 +5,11 @@ import { createNotificationServiceModule } from './app';
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(createNotificationServiceModule());
-  const configService = app.get(ConfigService);
-  const port = configService.get<number>('PORT', 3005);
+  const config = app.get(ConfigService);
 
-  await app.listen(port);
+  // Raw KafkaJS consumers (NotificationKafkaConsumer, DltKafkaConsumer) connect
+  // and subscribe in their OnModuleInit lifecycle hooks — no connectMicroservice needed.
+  await app.listen(config.get<number>('PORT', 3005));
 }
 
 void bootstrap();

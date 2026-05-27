@@ -18,25 +18,43 @@ alwaysApply: true
 - **Messaging:** Apache Kafka via `kafkajs` only. Never introduce gRPC or `*.proto` files.
 - **Persistence:** PostgreSQL 16 — one isolated database per domain service. Redis 7 for caching.
 
+## Shell Command Invocation
+
+> **Critical for AI agents running shell commands.**
+
+`pnpm` is managed by **Corepack** on this machine and is not on the system `PATH` as a standalone binary. Every shell command that calls `pnpm` **must** be prefixed with `corepack`:
+
+```powershell
+# ✅ Correct — always use this form
+corepack pnpm install
+corepack pnpm --filter @ente-doctor/auth-service add bcryptjs
+corepack pnpm --filter @ente-doctor/notification-service add -D nodemon
+
+# ❌ Wrong — pnpm is not on PATH
+pnpm install
+```
+
+This applies to **every** pnpm invocation in a terminal/shell tool call: `install`, `add`, `remove`, `run`, `exec`, `dlx`, and filter commands.
+
 ## Tooling Bans
 
-- **Never** invoke `npm`, `yarn`, or `npx`. Always use `pnpm`, `pnpm dlx`, or `pnpm --filter @ente-doctor/<name>`.
+- **Never** invoke `npm`, `yarn`, or `npx`. Always use `corepack pnpm`, `corepack pnpm dlx`, or `corepack pnpm --filter @ente-doctor/<name>`.
 - **Never** add Nx, Turborepo, or Lerna files/configs.
 - **Never** create a `.nvmrc` or `.node-version` that disagrees with Node 22.
 
 ## Canonical Scripts
 
-Only invoke these root scripts; never invent new top-level names:
+Only invoke these root scripts; never invent new top-level names (all prefixed with `corepack`):
 
-- `pnpm install` — install workspace dependencies.
-- `pnpm docker:up` / `pnpm docker:down` / `pnpm docker:logs` — control the local infra (`docker-compose.yml`).
-- `pnpm dev` — run all services in `tsx watch` mode in parallel.
-- `pnpm build` / `pnpm lint` / `pnpm test` / `pnpm clean` — recursive operations via `pnpm -r --filter @ente-doctor/*`.
-- For single-app work, scope explicitly: `pnpm --filter @ente-doctor/<app> <script>`.
+- `corepack pnpm install` — install workspace dependencies.
+- `corepack pnpm docker:up` / `corepack pnpm docker:down` / `corepack pnpm docker:logs` — control the local infra (`docker-compose.yml`).
+- `corepack pnpm dev` — run all services in `tsx watch` mode in parallel.
+- `corepack pnpm build` / `corepack pnpm lint` / `corepack pnpm test` / `corepack pnpm clean` — recursive operations via `corepack pnpm -r --filter @ente-doctor/*`.
+- For single-app work, scope explicitly: `corepack pnpm --filter @ente-doctor/<app> <script>`.
 
 ## Dependency Hygiene
 
-- **Never** install third-party dependencies at the workspace root. Always scope: `pnpm --filter @ente-doctor/<app> add <pkg>`.
+- **Never** install third-party dependencies at the workspace root. Always scope: `corepack pnpm --filter @ente-doctor/<app> add <pkg>`.
 - Root `devDependencies` are a strict allowlist: `typescript`, `prettier`, `@types/node`, `tsx`. Never expand it.
 - Per-service `devDependencies` may include `@swc/core`, `@swc-node/register`, and `nodemon` when the service uses SWC as its dev compiler (see rule `05-swc-compiler`).
 - **Always** reference internal packages via `workspace:*`.
