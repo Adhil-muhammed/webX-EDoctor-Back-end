@@ -22,3 +22,13 @@ export interface AppointmentCreatedPayload {
 }
 
 export type AppointmentCreatedEvent = DomainEvent<AppointmentCreatedPayload>;
+
+export interface NotificationRequestedPayload {
+  readonly channel: 'email' | 'sms' | 'whatsapp';
+  readonly recipient: string;
+  readonly template: string;
+  readonly data: Record<string, string>;
+}
+
+export type NotificationRequestedEvent =
+  DomainEvent<NotificationRequestedPayload>;

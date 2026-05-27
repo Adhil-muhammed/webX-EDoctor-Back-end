@@ -76,18 +76,22 @@ pnpm --filter @ente-doctor/booking-service clean
 
 ### Local Development
 
-**Run all services in parallel (watch mode via `tsx watch`):**
+**Run all services in parallel:**
 
 ```bash
 pnpm dev
 ```
 
-This starts `api-gateway` and all `*-service` apps simultaneously. Each app reloads on source changes.
+This starts `api-gateway` and all `*-service` apps simultaneously. Each app reloads on source changes. Most services use `tsx watch`. Services that rely on NestJS class-based DI (e.g. `auth-service`) use `nodemon + @swc-node/register` instead — the `start:dev` script in each service's `package.json` is authoritative.
 
 **Run a single service in watch mode:**
 
 ```bash
+# Any service (uses that service's own start:dev script)
 pnpm --filter @ente-doctor/booking-service start:dev
+
+# auth-service specifically (SWC + nodemon)
+pnpm --filter @ente-doctor/auth-service start:dev
 ```
 
 **Run a built service (production mode):**
@@ -95,6 +99,23 @@ pnpm --filter @ente-doctor/booking-service start:dev
 ```bash
 pnpm --filter @ente-doctor/booking-service start
 ```
+
+### Dev Compiler Per Service
+
+Two dev compilers are used across the monorepo:
+
+| Compiler | Services | `start:dev` script | `emitDecoratorMetadata` |
+|---|---|---|---|
+| `tsx watch` (esbuild) | `api-gateway`, `booking-service`, `provider-service`, `search-service`, `notification-service` | `tsx watch src/main.ts` | ❌ not needed |
+| `@swc-node/register` + `nodemon` | `auth-service` | `nodemon --watch src --ext ts,json --exec node -r @swc-node/register src/main.ts` | ✅ enabled via `.swcrc` |
+
+Services that use `@Injectable()` class-based DI **must** use SWC — `tsx` (esbuild) does not emit decorator metadata, which NestJS needs to resolve constructor parameter types at runtime.
+
+When adding SWC to a new service:
+1. `pnpm --filter @ente-doctor/<service> add -D @swc/core @swc-node/register nodemon`
+2. Create `apps/<service>/.swcrc` with `"decoratorMetadata": true` (see `apps/auth-service/.swcrc` as the canonical reference).
+3. Update `start:dev` in the service's `package.json`.
+4. Production `build` continues to use `tsc` — SWC is dev-only.
 
 ### Testing
 
@@ -166,6 +187,7 @@ apps/<service>/
 ├── Dockerfile                # Multi-stage, node:22-alpine, pnpm filtered install
 ├── package.json              # Service manifest (@ente-doctor/<service>)
 ├── tsconfig.json             # Extends ../../tsconfig.json
+├── .swcrc                    # SWC compiler config (only in services using class-based DI, e.g. auth-service)
 └── src/
     ├── main.ts               # Bootstrap: NestFactory.create + ConfigService port
     ├── app.ts                # Inline @Module class + createXModule() factory
@@ -296,7 +318,8 @@ The architecture enforces **Hexagonal Architecture (Ports & Adapters)** within e
 - Never pin a `devDependency` to a patch version manually. Let `pnpm add -D <pkg>` resolve the latest compatible version.
 - Never add a third-party package for a need already satisfied by an internal package (`@ente-doctor/common` for logging/errors, `@ente-doctor/contracts` for DTOs, `@ente-doctor/event-bus` for Kafka topics).
 - Install dependencies at the app level (`pnpm --filter @ente-doctor/<app> add <pkg>`), not at the root.
-- Root `devDependencies` are limited to workspace-wide tooling: `typescript`, `prettier`, `@types/node`, `tsx`.
+- Root `devDependencies` are limited to workspace-wide tooling: `typescript`, `prettier`, `@types/node`, `tsx`. Never expand this list.
+- Per-service `devDependencies` may additionally include `@swc/core`, `@swc-node/register`, and `nodemon` when that service uses SWC as its dev compiler (e.g. `auth-service`).
 
 **Formatting:**
 

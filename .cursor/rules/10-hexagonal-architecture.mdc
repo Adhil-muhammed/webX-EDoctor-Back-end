@@ -49,3 +49,32 @@ Every service under `apps/<service>/src/` follows the same Ports & Adapters layo
 
 - `process.env` reads are permitted **only** in `config/*.config.ts`.
 - All runtime providers must read configuration via `ConfigService` from `@nestjs/config`.
+
+## `app.ts` DI Binding Pattern
+
+The `providers` array in every `@Module` must follow exactly this three-section structure:
+
+```typescript
+providers: [
+  // 1. Infrastructure classes — registered bare so NestJS resolves by SWC-emitted metadata.
+  PgPoolProvider,
+  AuthUserPostgresRepository,
+  BcryptHasher,
+  { provide: AUTH_LOGGER, useValue: new ConsoleLogger() },
+
+  // 2. Port-token aliases — useExisting prevents double instantiation.
+  { provide: AUTH_USER_REPOSITORY, useExisting: AuthUserPostgresRepository },
+  { provide: OTP_HASHER, useExisting: BcryptHasher },
+
+  // 3. Use cases — domain classes stay NestJS-free; factories must be trivial pass-through.
+  {
+    provide: REQUEST_OTP_USE_CASE,
+    inject: [AUTH_USER_REPOSITORY, OTP_STORE, NOTIFICATION_PUBLISHER, OTP_HASHER, AUTH_LOGGER],
+    useFactory: (repo, store, pub, hasher, log) =>
+      new RequestOtpUseCase(repo, store, pub, hasher, log),
+  },
+]
+```
+
+- **Never** inline closures (e.g. `(plain) => bcrypt.hash(plain, 8)`) inside a `useFactory`. Extract them into an `@Injectable()` class.
+- **Never** write `new ConsoleLogger()` more than once per module — provide it under a single token.

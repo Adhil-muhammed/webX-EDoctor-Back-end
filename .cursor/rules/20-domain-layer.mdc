@@ -34,3 +34,20 @@ The domain layer is the innermost layer and **must remain framework-agnostic**. 
 
 - Allowed: `@ente-doctor/common` (`Logger`, `DomainError`) and `@ente-doctor/contracts` (refs, DTOs, localization).
 - Forbidden: `@ente-doctor/event-bus` here. Topic publishing belongs at the entrypoints or infrastructure layer.
+
+## Closure → Port Rule
+
+When a use case needs a function that wraps a third-party library (e.g. `bcrypt.hash`, `bcrypt.compare`), **never** accept a raw function type in the constructor. Instead:
+
+1. Define a named interface in `domain/use-cases/ports.ts`:
+   ```typescript
+   export interface OtpHasher {
+     hash(plain: string): Promise<string>;
+     compare(plain: string, hashed: string): Promise<boolean>;
+   }
+   export const OTP_HASHER = Symbol('OtpHasher');
+   ```
+2. Accept it as a named port in the use-case constructor: `private readonly hasher: OtpHasher`.
+3. Implement it as an `@Injectable()` class in `infrastructure/external-services/`.
+
+This keeps the domain free of `Function` parameter types and makes every dependency mockable by interface.

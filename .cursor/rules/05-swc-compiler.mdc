@@ -1,0 +1,51 @@
+---
+description: Per-service SWC compiler setup — canonical .swcrc and start:dev script. Pull this rule whenever adding or modifying the dev compiler for any service, or when emitDecoratorMetadata is required.
+globs: apps/**/.swcrc,apps/**/package.json
+alwaysApply: false
+---
+
+# Per-Service SWC Compiler
+
+Services that use NestJS class-based DI (constructor parameter inference) **must** use SWC as their dev compiler so that `emitDecoratorMetadata` is active at runtime. `tsx` (esbuild) does not support this flag.
+
+## Canonical `.swcrc`
+
+Place at `apps/<service>/.swcrc`:
+
+```json
+{
+  "$schema": "https://json.schemastore.org/swcrc",
+  "jsc": {
+    "parser": { "syntax": "typescript", "decorators": true, "dynamicImport": true },
+    "target": "es2023",
+    "transform": {
+      "legacyDecorator": true,
+      "decoratorMetadata": true
+    }
+  },
+  "module": { "type": "commonjs" },
+  "sourceMaps": "inline"
+}
+```
+
+`decoratorMetadata: true` is the critical flag — it emits `Reflect.metadata(...)` calls that NestJS reads to resolve constructor parameter types.
+
+## Canonical `start:dev` Script
+
+```json
+"start:dev": "nodemon --watch src --ext ts,json --exec node -r @swc-node/register src/main.ts"
+```
+
+`@swc-node/register` is a Node.js `require` hook that compiles TypeScript on-the-fly using SWC, picking up `.swcrc` automatically.
+
+## Required Per-Service devDependencies
+
+```
+pnpm --filter @ente-doctor/<service> add -D @swc/core @swc-node/register nodemon
+```
+
+Never install these at the workspace root.
+
+## Production Build
+
+Production continues to use `tsc` (`"build": "tsc -p tsconfig.json"`). SWC is dev-only.

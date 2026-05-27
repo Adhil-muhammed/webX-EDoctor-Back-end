@@ -38,6 +38,7 @@ Only invoke these root scripts; never invent new top-level names:
 
 - **Never** install third-party dependencies at the workspace root. Always scope: `pnpm --filter @ente-doctor/<app> add <pkg>`.
 - Root `devDependencies` are a strict allowlist: `typescript`, `prettier`, `@types/node`, `tsx`. Never expand it.
+- Per-service `devDependencies` may include `@swc/core`, `@swc-node/register`, and `nodemon` when the service uses SWC as its dev compiler (see rule `05-swc-compiler`).
 - **Always** reference internal packages via `workspace:*`.
 - **Never** pin patch versions manually. Let pnpm resolve.
 - **Never** add a third-party package when an internal `@ente-doctor/*` package already covers the need.
