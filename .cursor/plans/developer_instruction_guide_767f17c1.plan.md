@@ -16,7 +16,7 @@ isProject: false
 - **Language:** TypeScript 5.7+, targeting ES2023 with `NodeNext` module resolution.
 - **Runtime:** Node.js 22 (Alpine). No `.nvmrc` is committed; use Node 22 as the canonical version.
 - **Framework:** NestJS 11 (`@nestjs/common`, `@nestjs/core`, `@nestjs/config`, `@nestjs/microservices`, `@nestjs/platform-express`).
-- **Monorepo Orchestration:** `pnpm` workspaces (`pnpm@10.0.0`). There is **no Nx, Turborepo, or Lerna**. All cross-workspace orchestration is handled through `pnpm --filter` and `pnpm -r`.
+- **Monorepo Orchestration:** `pnpm` workspaces (`pnpm@10.0.0`). There is **no Nx, Turborepo, or Lerna**. All cross-workspace orchestration is handled through `corepack pnpm --filter` and `corepack pnpm -r`.
 - **Package manager:** pnpm 10 only. Never use `npm` or `yarn` inside this repository.
 - **Messaging:** Apache Kafka via `kafkajs` (Bitnami Kafka 3.7 in local Docker). No gRPC or proto files exist.
 - **Databases:** PostgreSQL 16 — one isolated instance per domain service (5 total), provisioned by Docker Compose on ports 5433–5437.
@@ -34,14 +34,14 @@ isProject: false
 Must run this exact sequence immediately after a fresh clone:
 
 ```bash
-pnpm install
-pnpm docker:up
+corepack pnpm install
+corepack pnpm docker:up
 ```
 
 Wait for all Docker healthchecks to pass before starting services. Verify with:
 
 ```bash
-pnpm docker:logs
+corepack pnpm docker:logs
 ```
 
 ### Compile and Build
@@ -49,22 +49,22 @@ pnpm docker:logs
 **Full workspace build (all apps and packages):**
 
 ```bash
-pnpm build
+corepack pnpm build
 ```
 
-This runs `tsc` for every package under `@ente-doctor/*` using `pnpm -r`.
+This runs `tsc` for every package under `@ente-doctor/*` using `corepack pnpm -r`.
 
 **Build a single app or package:**
 
 ```bash
-pnpm --filter @ente-doctor/booking-service build
-pnpm --filter @ente-doctor/common build
+corepack pnpm --filter @ente-doctor/booking-service build
+corepack pnpm --filter @ente-doctor/common build
 ```
 
 **Type-check without emitting (lint mode for packages):**
 
 ```bash
-pnpm --filter @ente-doctor/common lint
+corepack pnpm --filter @ente-doctor/common lint
 ```
 
 Packages use `tsc --noEmit` as their `lint` script, not eslint.
@@ -72,13 +72,13 @@ Packages use `tsc --noEmit` as their `lint` script, not eslint.
 **Clean all build artifacts:**
 
 ```bash
-pnpm clean
+corepack pnpm clean
 ```
 
 **Clean a single service:**
 
 ```bash
-pnpm --filter @ente-doctor/booking-service clean
+corepack pnpm --filter @ente-doctor/booking-service clean
 ```
 
 ### Local Development
@@ -86,7 +86,7 @@ pnpm --filter @ente-doctor/booking-service clean
 **Run all services in parallel:**
 
 ```bash
-pnpm dev
+corepack pnpm dev
 ```
 
 This starts `api-gateway` and all `*-service` apps simultaneously. Each app reloads on source changes. Most services use `tsx watch`. Services that rely on NestJS class-based DI (e.g. `auth-service`) use `nodemon + @swc-node/register` instead — the `start:dev` script in each service's `package.json` is authoritative.
@@ -95,16 +95,16 @@ This starts `api-gateway` and all `*-service` apps simultaneously. Each app relo
 
 ```bash
 # Any service (uses that service's own start:dev script)
-pnpm --filter @ente-doctor/booking-service start:dev
+corepack pnpm --filter @ente-doctor/booking-service start:dev
 
 # auth-service specifically (SWC + nodemon)
-pnpm --filter @ente-doctor/auth-service start:dev
+corepack pnpm --filter @ente-doctor/auth-service start:dev
 ```
 
 **Run a built service (production mode):**
 
 ```bash
-pnpm --filter @ente-doctor/booking-service start
+corepack pnpm --filter @ente-doctor/booking-service start
 ```
 
 ### Dev Compiler Per Service
@@ -119,23 +119,23 @@ Two dev compilers are used across the monorepo:
 Services that use `@Injectable()` class-based DI **must** use SWC — `tsx` (esbuild) does not emit decorator metadata, which NestJS needs to resolve constructor parameter types at runtime.
 
 When adding SWC to a new service:
-1. `pnpm --filter @ente-doctor/<service> add -D @swc/core @swc-node/register nodemon`
+1. `corepack pnpm --filter @ente-doctor/<service> add -D @swc/core @swc-node/register nodemon`
 2. Create `apps/<service>/.swcrc` with `"decoratorMetadata": true` (see `apps/auth-service/.swcrc` as the canonical reference).
 3. Update `start:dev` in the service's `package.json`.
 4. Production `build` continues to use `tsc` — SWC is dev-only.
 
 ### Testing
 
-**No test suite is implemented yet.** All `test` scripts are placeholder `echo` stubs. Running `pnpm test` emits informational messages only — it does not fail.
+**No test suite is implemented yet.** All `test` scripts are placeholder `echo` stubs. Running `corepack pnpm test` emits informational messages only — it does not fail.
 
 When tests are eventually added, the convention for running them will be:
 
 ```bash
 # Full workspace
-pnpm test
+corepack pnpm test
 
 # Single service
-pnpm --filter @ente-doctor/booking-service test
+corepack pnpm --filter @ente-doctor/booking-service test
 ```
 
 The test framework to adopt is **Jest with `ts-jest`**. Refer to the Testing Conventions section for the expected setup shape.
@@ -145,16 +145,16 @@ The test framework to adopt is **Jest with `ts-jest`**. Refer to the Testing Con
 **Lint the full workspace (ESLint + type-checking):**
 
 ```bash
-pnpm lint
+corepack pnpm lint
 ```
 
 **Lint a single service:**
 
 ```bash
-pnpm --filter @ente-doctor/api-gateway lint
+corepack pnpm --filter @ente-doctor/api-gateway lint
 ```
 
-Must run `pnpm lint` and resolve all errors before committing any change. Warnings on `@typescript-eslint/no-floating-promises` and `@typescript-eslint/no-unsafe-argument` must be addressed or explicitly suppressed with a justifying comment.
+Must run `corepack pnpm lint` and resolve all errors before committing any change. Warnings on `@typescript-eslint/no-floating-promises` and `@typescript-eslint/no-unsafe-argument` must be addressed or explicitly suppressed with a justifying comment.
 
 There is **no pre-commit hook** (no Husky, no lint-staged). Manual lint execution is mandatory.
 
@@ -322,9 +322,9 @@ The architecture enforces **Hexagonal Architecture (Ports & Adapters)** within e
 **Dependencies:**
 
 - Use `workspace:`* for all internal package references.
-- Never pin a `devDependency` to a patch version manually. Let `pnpm add -D <pkg>` resolve the latest compatible version.
+- Never pin a `devDependency` to a patch version manually. Let `corepack pnpm add -D <pkg>` resolve the latest compatible version.
 - Never add a third-party package for a need already satisfied by an internal package (`@ente-doctor/common` for logging/errors, `@ente-doctor/contracts` for DTOs, `@ente-doctor/event-bus` for Kafka topics).
-- Install dependencies at the app level (`pnpm --filter @ente-doctor/<app> add <pkg>`), not at the root.
+- Install dependencies at the app level (`corepack pnpm --filter @ente-doctor/<app> add <pkg>`), not at the root.
 - Root `devDependencies` are limited to workspace-wide tooling: `typescript`, `prettier`, `@types/node`, `tsx`. Never expand this list.
 - Per-service `devDependencies` may additionally include `@swc/core`, `@swc-node/register`, and `nodemon` when that service uses SWC as its dev compiler (e.g. `auth-service`).
 

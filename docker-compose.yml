@@ -86,6 +86,86 @@ services:
       timeout: 5s
       retries: 5
 
+  flyway-auth:
+    image: flyway/flyway:latest
+    container_name: ente-flyway-auth
+    restart: "no"
+    depends_on:
+      auth-postgres:
+        condition: service_healthy
+    environment:
+      FLYWAY_URL: jdbc:postgresql://auth-postgres:5432/ente_auth
+      FLYWAY_USER: ente_auth
+      FLYWAY_PASSWORD: ente_auth_password
+      FLYWAY_CONNECT_RETRIES: "3"
+    volumes:
+      - ./db/auth:/flyway/sql:ro
+    command: migrate
+
+  flyway-provider:
+    image: flyway/flyway:latest
+    container_name: ente-flyway-provider
+    restart: "no"
+    depends_on:
+      provider-postgres:
+        condition: service_healthy
+    environment:
+      FLYWAY_URL: jdbc:postgresql://provider-postgres:5432/ente_provider
+      FLYWAY_USER: ente_provider
+      FLYWAY_PASSWORD: ente_provider_password
+      FLYWAY_CONNECT_RETRIES: "3"
+    volumes:
+      - ./db/provider:/flyway/sql:ro
+    command: migrate
+
+  flyway-booking:
+    image: flyway/flyway:latest
+    container_name: ente-flyway-booking
+    restart: "no"
+    depends_on:
+      booking-postgres:
+        condition: service_healthy
+    environment:
+      FLYWAY_URL: jdbc:postgresql://booking-postgres:5432/ente_booking
+      FLYWAY_USER: ente_booking
+      FLYWAY_PASSWORD: ente_booking_password
+      FLYWAY_CONNECT_RETRIES: "3"
+    volumes:
+      - ./db/booking:/flyway/sql:ro
+    command: migrate
+
+  flyway-search:
+    image: flyway/flyway:latest
+    container_name: ente-flyway-search
+    restart: "no"
+    depends_on:
+      search-postgres:
+        condition: service_healthy
+    environment:
+      FLYWAY_URL: jdbc:postgresql://search-postgres:5432/ente_search
+      FLYWAY_USER: ente_search
+      FLYWAY_PASSWORD: ente_search_password
+      FLYWAY_CONNECT_RETRIES: "3"
+    volumes:
+      - ./db/search:/flyway/sql:ro
+    command: migrate
+
+  flyway-notification:
+    image: flyway/flyway:latest
+    container_name: ente-flyway-notification
+    restart: "no"
+    depends_on:
+      notification-postgres:
+        condition: service_healthy
+    environment:
+      FLYWAY_URL: jdbc:postgresql://notification-postgres:5432/ente_notification
+      FLYWAY_USER: ente_notification
+      FLYWAY_PASSWORD: ente_notification_password
+      FLYWAY_CONNECT_RETRIES: "3"
+    volumes:
+      - ./db/notification:/flyway/sql:ro
+    command: migrate
+
   redis:
     image: redis:7-alpine
     container_name: ente-redis

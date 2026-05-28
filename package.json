@@ -13,7 +13,10 @@
     "clean": "corepack pnpm -r --filter @ente-doctor/* clean",
     "docker:up": "docker compose up -d",
     "docker:logs": "docker compose logs -f",
-    "docker:down": "docker compose down --rmi all"
+    "docker:down": "docker compose down --rmi all",
+    "db:migrate": "docker compose up flyway-auth flyway-provider flyway-booking flyway-search flyway-notification",
+    "db:info": "docker compose run --rm flyway-auth info && docker compose run --rm flyway-booking info",
+    "db:repair": "docker compose run --rm flyway-auth repair && docker compose run --rm flyway-provider repair && docker compose run --rm flyway-booking repair && docker compose run --rm flyway-search repair && docker compose run --rm flyway-notification repair"
   },
   "devDependencies": {
     "@types/node": "^22.10.7",

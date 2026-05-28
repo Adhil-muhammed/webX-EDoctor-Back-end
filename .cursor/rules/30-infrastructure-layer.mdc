@@ -13,6 +13,10 @@ The infrastructure layer holds **all** I/O. It implements ports declared in `dom
 - `infrastructure/external-services/` — adapter classes wrapping third-party APIs (HTTP, SDKs, message brokers, QR generators, etc.).
 - **Never** create other subfolders here without amending these rules.
 
+## Schema Changes
+
+Whenever you add or modify a `*.model.ts` that implies a new or changed database table, you **must** also create a Flyway migration script. See rule `35-flyway-migrations` for naming convention, file placement, and version numbering.
+
 ## Model vs Entity Separation
 
 - `*.model.ts` defines the **persistence** shape including `createdAt` / `updatedAt` timestamps.

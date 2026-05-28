@@ -1,0 +1,85 @@
+---
+description: "Flyway migration authoring rules. Pull in whenever creating or modifying a database table, adding a *.model.ts, changing a repository schema, or writing to db/**/*.sql."
+globs: "{apps/**/src/infrastructure/database/**/*.ts,db/**/*.sql}"
+alwaysApply: false
+---
+
+# Flyway Migrations
+
+Every schema change **must** be expressed as a new versioned Flyway script. Never modify an already-applied migration file.
+
+## Naming Convention
+
+```
+V{N}__{snake_case_description}.sql
+```
+
+- `V` — uppercase prefix, required.
+- `{N}` — integer version, no leading zeros (e.g. `2`, `10`).
+- `__` — double underscore separator, required.
+- `{snake_case_description}` — lowercase words separated by underscores.
+
+Examples: `V2__add_providers_table.sql`, `V3__add_specialty_column_to_providers.sql`
+
+## File Placement
+
+Each service owns one migration folder. Always place scripts in the folder matching the service that owns the table:
+
+| Service | Migration folder |
+|---|---|
+| `auth-service` | `db/auth/` |
+| `provider-service` | `db/provider/` |
+| `booking-service` | `db/booking/` |
+| `search-service` | `db/search/` |
+| `notification-service` | `db/notification/` |
+
+## Version Number
+
+Before writing a new script, list the existing `V*.sql` files in the target folder to find the highest `N`, then use `N+1`.
+
+```powershell
+# Example: find highest version in db/provider/
+ls db/provider/V*.sql
+# Current highest: V1__init_schema.sql → next file is V2__...
+```
+
+## What Triggers a New Migration
+
+| Change | Action required |
+|---|---|
+| New table | New `V{N}__create_<table>.sql` |
+| New column | New `V{N}__add_<column>_to_<table>.sql` |
+| Dropped column | New `V{N}__drop_<column>_from_<table>.sql` |
+| New index | New `V{N}__add_index_<table>_<column>.sql` |
+| New ENUM type | New `V{N}__add_<type_name>_type.sql` |
+| Renamed table/column | New `V{N}__rename_<old>_to_<new>.sql` |
+
+## Good vs Bad Examples
+
+```sql
+-- ✅ GOOD: V2__add_specialty_column_to_providers.sql (new file)
+ALTER TABLE providers ADD COLUMN specialty TEXT NOT NULL DEFAULT '';
+
+-- ❌ BAD: editing V1__init_schema.sql to add the column
+-- This breaks Flyway's checksum check and crashes the next migrate run.
+```
+
+## Checksum Protection
+
+Flyway SHA-256 hashes every script it has already applied and stores it in `flyway_schema_history`. If you edit a previously-applied file, the next `migrate` run throws:
+
+```
+Migration checksum mismatch for migration version 1
+```
+
+The only fix is to restore the original file. **Never edit applied migrations.**
+
+## Startup Order Recap
+
+```
+Postgres container → healthcheck passes → Flyway container starts
+→ command: migrate runs once → Flyway container exits (restart: "no")
+→ NestJS service starts and finds schema ready
+```
+
+Flyway connects using the JDBC URL, user, and password set as environment variables in `docker-compose.yml`. It retries up to `FLYWAY_CONNECT_RETRIES=3` times before failing.
