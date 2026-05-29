@@ -1,4 +1,12 @@
 import { registerAs } from '@nestjs/config';
+import type { RetryOptions } from 'kafkajs';
+
+export const KAFKA_CLIENT_RETRY: RetryOptions = {
+  retries: 5,
+  initialRetryTime: 1000,
+  factor: 2,
+  maxRetryTime: 30_000,
+};
 
 export interface KafkaConfig {
   readonly brokers: string[];

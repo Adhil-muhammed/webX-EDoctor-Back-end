@@ -8,7 +8,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "start": "node dist/main.js",
-    "start:dev": "tsx watch src/main.ts",
+    "start:dev": "nodemon --watch src --ext ts,json --exec node -r @swc-node/register src/main.ts",
     "lint": "tsc -p tsconfig.json --noEmit",
     "test": "echo \"No tests configured for @ente-doctor/api-gateway yet\"",
     "clean": "rimraf dist"
@@ -22,11 +22,15 @@
     "@nestjs/core": "^11.0.1",
     "@nestjs/microservices": "^11.0.1",
     "@nestjs/platform-express": "^11.0.1",
+    "@nestjs/swagger": "^11.4.4",
     "kafkajs": "^2.2.4",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1"
   },
   "devDependencies": {
+    "@swc-node/register": "^1.11.1",
+    "@swc/core": "^1.15.40",
+    "nodemon": "^3.1.14",
     "rimraf": "^6.0.1"
   }
 }

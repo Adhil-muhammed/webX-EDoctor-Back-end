@@ -3,7 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { Kafka, type Consumer } from 'kafkajs';
 import type { Logger } from '@ente-doctor/common';
 import { EventTopics, type NotificationRequestedEvent } from '@ente-doctor/event-bus';
-import type { KafkaConfig } from '../../config/kafka.config';
+import { KAFKA_CLIENT_RETRY, type KafkaConfig } from '../../config/kafka.config';
 import { NOTIFICATION_LOGGER } from '../../domain/use-cases/ports';
 import type { EmailTemplate } from '../../domain/use-cases/ports';
 import { SendEmailUseCase } from '../../domain/use-cases/send-email.use-case';
@@ -34,7 +34,7 @@ export class NotificationKafkaConsumer implements OnModuleInit, OnModuleDestroy 
       clientId: kafkaCfg.clientId,
       brokers: kafkaCfg.brokers,
       // Network-level retry — not message processing retry
-      retry: { retries: 5, initialRetryTime: 300, factor: 2 },
+      retry: KAFKA_CLIENT_RETRY,
     });
     this.consumer = kafka.consumer({ groupId: kafkaCfg.groupId });
   }

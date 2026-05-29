@@ -3,7 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { Kafka, type Consumer } from 'kafkajs';
 import type { Logger } from '@ente-doctor/common';
 import { EventTopics } from '@ente-doctor/event-bus';
-import type { KafkaConfig } from '../../config/kafka.config';
+import { KAFKA_CLIENT_RETRY, type KafkaConfig } from '../../config/kafka.config';
 import { NOTIFICATION_LOGGER } from '../../domain/use-cases/ports';
 
 @Injectable()
@@ -18,7 +18,7 @@ export class DltKafkaConsumer implements OnModuleInit, OnModuleDestroy {
     const kafka = new Kafka({
       clientId: `${kafkaCfg.clientId}-dlt-consumer`,
       brokers: kafkaCfg.brokers,
-      retry: { retries: 5, initialRetryTime: 300, factor: 2 },
+      retry: KAFKA_CLIENT_RETRY,
     });
     this.consumer = kafka.consumer({ groupId: kafkaCfg.dltGroupId });
   }

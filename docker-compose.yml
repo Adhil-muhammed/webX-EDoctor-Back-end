@@ -210,6 +210,7 @@ services:
       interval: 10s
       timeout: 10s
       retries: 10
+      start_period: 30s
 
   kafka-ui:
     image: provectuslabs/kafka-ui:latest
