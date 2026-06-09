@@ -1,0 +1,48 @@
+---
+description: "Catalog of exports from the internal @ente-doctor/* packages (common, contracts, event-bus). Pull this rule in whenever adding a logger, throwing a domain error, defining a DTO, referencing a patient or provider across services, emitting or consuming a Kafka event, or adding a user-facing localized string."
+alwaysApply: false
+---
+
+# Internal Package Catalog
+
+Always prefer the internal `@ente-doctor/*` packages over installing third-party equivalents. References are `workspace:*` only; resolution uses the TS path aliases declared in [tsconfig.json](../../tsconfig.json).
+
+## `@ente-doctor/common`
+
+Source: [packages/common/src/index.ts](../../packages/common/src/index.ts).
+
+- `Logger` — interface with `info(message, context?)` and `error(message, context?)`. Use as the injection token for every logger.
+- `ConsoleLogger` — default `Logger` implementation delegating to `console.info` / `console.error`. The **only** place direct `console.*` calls are allowed.
+- `DomainError extends Error` — base class with a required `code: string`. **Every** custom domain exception must extend `DomainError`.
+
+## `@ente-doctor/contracts`
+
+Source: [packages/contracts/src/index.ts](../../packages/contracts/src/index.ts).
+
+- `PatientRef` — `{ id, phoneNumber }`. Use whenever referencing a patient outside the auth service.
+- `ProviderRef` — `{ id, displayName, specialty }`. Use whenever referencing a provider outside the provider service.
+- `BookingDto` — `{ id, patientId, providerId, startsAt: string, status: 'pending' | 'confirmed' | 'cancelled' }`. Use as the HTTP response shape for booking data.
+- `localization` — `as const` `{ en, ml }` map with keys `bookingCreated`, `bookingCancelled`. Add new user-facing strings here; **never** inline them in controllers.
+
+## `@ente-doctor/event-bus`
+
+Source: [packages/event-bus/src/index.ts](../../packages/event-bus/src/index.ts).
+
+- `EventTopics` — `as const` map of topic names: `appointment.created`, `slot.blocked`, `provider.leave.created`, `notification.requested`. **Only** source of topic strings.
+- `EventTopic` — union of `EventTopics` values. Use for any `topic` field.
+- `DomainEvent<TPayload>` — `{ id, topic, occurredAt: string, payload }`. Every Kafka message must conform.
+- `AppointmentCreatedPayload` — typed payload for `appointment.created`.
+- `AppointmentCreatedEvent` — alias for `DomainEvent<AppointmentCreatedPayload>`.
+
+## Import Patterns
+
+```ts
+import type { Logger } from '@ente-doctor/common';
+import { ConsoleLogger, DomainError } from '@ente-doctor/common';
+import type { BookingDto, PatientRef, ProviderRef } from '@ente-doctor/contracts';
+import { localization } from '@ente-doctor/contracts';
+import { EventTopics, type DomainEvent, type EventTopic } from '@ente-doctor/event-bus';
+```
+
+- **Never** deep-import from `dist/` or compiled paths.
+- When a needed symbol is missing, add it to the appropriate shared package — never re-implement it inside an app.

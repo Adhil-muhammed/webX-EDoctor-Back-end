@@ -1,0 +1,61 @@
+---
+globs: apps/**/src/infrastructure/**/*.ts
+alwaysApply: false
+---
+
+# Infrastructure Layer — Adapters
+
+The infrastructure layer holds **all** I/O. It implements ports declared in `domain/` and adapts external systems inward. Reference files: [apps/booking-service/src/infrastructure/database/booking.model.ts](../../apps/booking-service/src/infrastructure/database/booking.model.ts), [apps/booking-service/src/infrastructure/database/booking.repository.ts](../../apps/booking-service/src/infrastructure/database/booking.repository.ts).
+
+## Folder Boundaries
+
+- `infrastructure/database/` — persistence models (`*.model.ts`) and repository implementations (`*.repository.ts`).
+- `infrastructure/external-services/` — adapter classes wrapping third-party APIs (HTTP, SDKs, message brokers, QR generators, etc.).
+- **Never** create other subfolders here without amending these rules.
+
+## Model vs Entity Separation
+
+- `*.model.ts` defines the **persistence** shape including `createdAt` / `updatedAt` timestamps.
+- A model file **may** import entity types (e.g., enums like `BookingStatus`) from `domain/entities/`. This is the only permitted infra-to-domain type import.
+- **Never** import a `*.model.ts` from `domain/`.
+- **Never** put behavior in models — they are data interfaces only.
+
+## Repositories
+
+- File name `<aggregate>.repository.ts`. Class name `<Aggregate>Repository`.
+- The repository class implements the interface defined in `domain/`. **Always** explicitly declare `implements <DomainPort>`.
+- Repository methods return models or `null`; mapping models to entities happens inside the use case or a dedicated mapper.
+- **Never** import a use case or controller from a repository.
+
+## External-Service Adapters
+
+- One adapter per integration. File name `<vendor>.adapter.ts`, class name `<Vendor>Adapter`.
+- Adapters implement an interface declared in `domain/` (a port).
+- Network/IO configuration (URLs, keys) arrives through the constructor — fetched by callers from `ConfigService`.
+- **Never** read `process.env` directly inside an adapter.
+
+## Dependency Injection
+
+Every infrastructure class **must** be decorated with `@Injectable()`. NestJS resolves constructor dependencies by type metadata emitted by SWC (see rule `05-swc-compiler`).
+
+```typescript
+// ✅ Correct
+@Injectable()
+export class AuthUserPostgresRepository implements AuthUserRepository {
+  constructor(private readonly pool: PgPoolProvider) {}
+}
+
+// ❌ Wrong — missing @Injectable(), dependency not managed by Nest
+export class AuthUserPostgresRepository implements AuthUserRepository {
+  constructor(pool: PgPoolProvider) { ... }
+}
+```
+
+- Classes that own long-lived connections (database pool, Redis client) must also implement `OnModuleDestroy` and close the connection in `onModuleDestroy()`.
+- Inject `ConfigService` via the constructor to read env values — **never** read `process.env` directly inside a class.
+- When the token type is not a class (e.g. `ClientKafka` injected by string), use `@Inject(TOKEN_STRING)` explicitly on that constructor parameter.
+
+## Logging & Errors
+
+- Use the `Logger` interface from `@ente-doctor/common` for any logging.
+- Throw `DomainError` (or a subclass) for business-meaningful failures; raw `Error` is acceptable only for unexpected I/O errors that should bubble.

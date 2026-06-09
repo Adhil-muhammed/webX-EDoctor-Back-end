@@ -1,23 +1,153 @@
+name: ente-doctor-local
+
 services:
-  postgres:
+  auth-postgres:
     image: postgres:16-alpine
-    container_name: edoctor_postgres
-    restart: unless-stopped
+    container_name: ente-auth-postgres
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-edoctor}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-edoctor_secret}
-      POSTGRES_DB: ${POSTGRES_DB:-edoctor_db}
+      POSTGRES_USER: ente_auth
+      POSTGRES_PASSWORD: ente_auth_password
+      POSTGRES_DB: ente_auth
     ports:
-      - '${POSTGRES_PORT:-5432}:5432'
+      - "5433:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - auth_postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-edoctor} -d ${POSTGRES_DB:-edoctor_db}']
+      test: ["CMD-SHELL", "pg_isready -U ente_auth -d ente_auth"]
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 10s
+
+  provider-postgres:
+    image: postgres:16-alpine
+    container_name: ente-provider-postgres
+    environment:
+      POSTGRES_USER: ente_provider
+      POSTGRES_PASSWORD: ente_provider_password
+      POSTGRES_DB: ente_provider
+    ports:
+      - "5434:5432"
+    volumes:
+      - provider_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ente_provider -d ente_provider"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  booking-postgres:
+    image: postgres:16-alpine
+    container_name: ente-booking-postgres
+    environment:
+      POSTGRES_USER: ente_booking
+      POSTGRES_PASSWORD: ente_booking_password
+      POSTGRES_DB: ente_booking
+    ports:
+      - "5435:5432"
+    volumes:
+      - booking_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ente_booking -d ente_booking"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  search-postgres:
+    image: postgres:16-alpine
+    container_name: ente-search-postgres
+    environment:
+      POSTGRES_USER: ente_search
+      POSTGRES_PASSWORD: ente_search_password
+      POSTGRES_DB: ente_search
+    ports:
+      - "5436:5432"
+    volumes:
+      - search_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ente_search -d ente_search"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  notification-postgres:
+    image: postgres:16-alpine
+    container_name: ente-notification-postgres
+    environment:
+      POSTGRES_USER: ente_notification
+      POSTGRES_PASSWORD: ente_notification_password
+      POSTGRES_DB: ente_notification
+    ports:
+      - "5437:5432"
+    volumes:
+      - notification_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        ["CMD-SHELL", "pg_isready -U ente_notification -d ente_notification"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: ente-redis
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  kafka:
+    image: apache/kafka:3.9.2
+    hostname: kafka
+    container_name: ente-kafka
+    environment:
+      CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093,EXTERNAL://:9094
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,EXTERNAL://localhost:9094
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_LOG_DIRS: /tmp/kraft-combined-logs
+    ports:
+      - "9094:9094"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "/opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list >/dev/null 2>&1",
+        ]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: ente-kafka-ui
+    depends_on:
+      kafka:
+        condition: service_healthy
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+    ports:
+      - "8080:8080"
 
 volumes:
-  postgres_data:
-    name: edoctor_postgres_data
+  auth_postgres_data:
+  provider_postgres_data:
+  booking_postgres_data:
+  search_postgres_data:
+  notification_postgres_data:
+  redis_data:

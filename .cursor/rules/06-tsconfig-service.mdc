@@ -1,0 +1,90 @@
+---
+description: >
+  Per-service tsconfig.json template and mandatory paths override.
+  Pull this rule whenever creating or modifying any apps/* tsconfig.json,
+  or when TS6059 "file is not under rootDir" errors appear.
+globs: apps/**/tsconfig.json
+alwaysApply: false
+---
+
+# Per-Service `tsconfig.json` — Mandatory Paths Override
+
+## The Trap
+
+The root [`tsconfig.json`](../../tsconfig.json) sets `"baseUrl": "."` (the repo root) and
+maps every internal package to its **source** directory:
+
+```json
+"paths": {
+  "@ente-doctor/common":    ["packages/common/src"],
+  "@ente-doctor/contracts": ["packages/contracts/src"],
+  "@ente-doctor/event-bus": ["packages/event-bus/src"]
+}
+```
+
+When a service `tsconfig.json` extends the root without overriding these fields, TypeScript
+resolves `@ente-doctor/common` to `packages/common/src/index.ts`. That file lives **outside**
+the service's own `rootDir: "src"`, which causes:
+
+```
+TS6059: File '…/packages/common/src/index.ts' is not under 'rootDir' '…/apps/<service>/src'.
+```
+
+This breaks `tsc --noEmit` (the `lint` script) in every service that imports an internal package.
+
+## Canonical Per-Service `tsconfig.json`
+
+Every file at `apps/<service>/tsconfig.json` **must** look exactly like this:
+
+```json
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "rootDir": "src",
+    "tsBuildInfoFile": "dist/.tsbuildinfo",
+    "baseUrl": ".",
+    "paths": {}
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules", "dist", "**/*.spec.ts"]
+}
+```
+
+## Two Mandatory Invariants
+
+1. **`"baseUrl": "."`** — must be present. Overrides the repo-root `baseUrl` so the service
+   resolves non-relative imports from its own directory, not the repo root.
+
+2. **`"paths": {}`** — must be present and **empty**. An empty object clears the inherited
+   `@ente-doctor/*` source mappings, forcing TypeScript to resolve those packages through
+   `node_modules`. Node modules resolution then hits the compiled `dist/index.d.ts` declared
+   in each package's `"types"` field — not the source `.ts` file.
+
+Omitting **either** field re-inherits the root mapping and triggers TS6059.
+
+## Prerequisite — Shared Package `dist/` Must Exist
+
+Before running `corepack pnpm --filter @ente-doctor/<service> lint` or `build`, the three
+shared packages must already have a compiled `dist/`. If they have never been built (or were
+cleaned), run:
+
+```powershell
+corepack pnpm --filter @ente-doctor/common build
+corepack pnpm --filter @ente-doctor/contracts build
+corepack pnpm --filter @ente-doctor/event-bus build
+```
+
+These are cheap (< 5 s each). A single `corepack pnpm install` after building refreshes the
+workspace symlinks so every service sees the compiled output.
+
+## Reference — Correctly Configured Services
+
+Both `apps/auth-service/tsconfig.json` and `apps/notification-service/tsconfig.json` already
+carry the override. Use either as a copy-paste reference when bootstrapping a new service.
+
+## Checklist When Adding a New Service
+
+- [ ] `apps/<service>/tsconfig.json` contains `"baseUrl": "."` and `"paths": {}`
+- [ ] Shared packages have a built `dist/` (`corepack pnpm --filter @ente-doctor/<pkg> build`)
+- [ ] `corepack pnpm --filter @ente-doctor/<service> lint` exits 0 before the first commit

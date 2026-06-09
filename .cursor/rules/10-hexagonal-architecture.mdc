@@ -1,0 +1,80 @@
+---
+globs: apps/**/src/**/*.ts
+alwaysApply: false
+---
+
+# Hexagonal Architecture — Per-Service Layout
+
+Every service under `apps/<service>/src/` follows the same Ports & Adapters layout. The reference implementation is [apps/booking-service/src/app.ts](../../apps/booking-service/src/app.ts).
+
+## Layer Hierarchy (outermost to innermost)
+
+- `entrypoints/http/` — NestJS `@Controller` classes. HTTP adapters.
+- `entrypoints/event-consumers/` — Kafka consumer handler classes.
+- `domain/use-cases/` — Command interfaces + use case handler classes.
+- `domain/entities/` — Aggregate roots, value objects, enums (innermost).
+- `infrastructure/database/` — Persistence model interfaces + repository implementations.
+- `infrastructure/external-services/` — Third-party adapter classes.
+- `config/` — Environment configuration factories.
+- `app.ts` — Inline `@Module` definition + `create<Service>Module()` factory.
+- `main.ts` — `NestFactory.create` bootstrap.
+
+## Permitted Import Paths
+
+- `entrypoints/http/` may import from `domain/use-cases/`, `domain/entities/`, `@ente-doctor/contracts`.
+- `entrypoints/event-consumers/` may import from `domain/use-cases/`, `domain/entities/`, `@ente-doctor/event-bus`.
+- `domain/use-cases/` may import from `domain/entities/`, `@ente-doctor/common`, `@ente-doctor/contracts`.
+- `domain/entities/` may import from `@ente-doctor/common`, `@ente-doctor/contracts` (shared value types only).
+- `infrastructure/database/` may import from `domain/entities/` (entity types only) and `@ente-doctor/common`.
+- `infrastructure/external-services/` may import from `domain/entities/`, `@ente-doctor/contracts`, `@ente-doctor/event-bus`.
+- `config/` reads only `process.env`. No internal imports.
+- `app.ts` may import from `entrypoints/http/` and `config/`.
+- `main.ts` may import from `app.ts`, `@nestjs/core`, `@nestjs/config`, `reflect-metadata`.
+
+## Forbidden Import Paths
+
+- **Forbidden:** `domain/` importing from `infrastructure/`, `entrypoints/`, or `app.ts`.
+- **Forbidden:** `infrastructure/` importing from `entrypoints/`.
+- **Forbidden:** Importing across `apps/<service>` boundaries. Inter-service communication is **exclusively** Kafka events typed by `@ente-doctor/event-bus`.
+- **Forbidden:** Importing from any `dist/` path. Always use the `workspace:*` package name or TypeScript path alias.
+- **Forbidden:** Hardcoding Kafka topic strings inline — pull every topic from `EventTopics` in `@ente-doctor/event-bus`.
+
+## Module Definition Rule
+
+- **Always** declare the Nest module inline inside `src/app.ts` and export a `create<Service>Module()` factory that returns the module class. Pattern reference: [apps/booking-service/src/app.ts](../../apps/booking-service/src/app.ts).
+- **Never** create a `*.module.ts` file. Existence of any such file is a violation.
+- **Never** register a controller, repository, adapter, or use case in the `@Module` decorator until its logic is implemented. Stubs stay out of DI.
+
+## Configuration Access
+
+- `process.env` reads are permitted **only** in `config/*.config.ts`.
+- All runtime providers must read configuration via `ConfigService` from `@nestjs/config`.
+
+## `app.ts` DI Binding Pattern
+
+The `providers` array in every `@Module` must follow exactly this three-section structure:
+
+```typescript
+providers: [
+  // 1. Infrastructure classes — registered bare so NestJS resolves by SWC-emitted metadata.
+  PgPoolProvider,
+  AuthUserPostgresRepository,
+  BcryptHasher,
+  { provide: AUTH_LOGGER, useValue: new ConsoleLogger() },
+
+  // 2. Port-token aliases — useExisting prevents double instantiation.
+  { provide: AUTH_USER_REPOSITORY, useExisting: AuthUserPostgresRepository },
+  { provide: OTP_HASHER, useExisting: BcryptHasher },
+
+  // 3. Use cases — domain classes stay NestJS-free; factories must be trivial pass-through.
+  {
+    provide: REQUEST_OTP_USE_CASE,
+    inject: [AUTH_USER_REPOSITORY, OTP_STORE, NOTIFICATION_PUBLISHER, OTP_HASHER, AUTH_LOGGER],
+    useFactory: (repo, store, pub, hasher, log) =>
+      new RequestOtpUseCase(repo, store, pub, hasher, log),
+  },
+]
+```
+
+- **Never** inline closures (e.g. `(plain) => bcrypt.hash(plain, 8)`) inside a `useFactory`. Extract them into an `@Injectable()` class.
+- **Never** write `new ConsoleLogger()` more than once per module — provide it under a single token.

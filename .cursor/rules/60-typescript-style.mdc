@@ -1,0 +1,48 @@
+---
+globs: **/*.ts
+alwaysApply: false
+---
+
+# TypeScript Style & Guardrails
+
+These rules apply to every `.ts` file in the workspace. Compiler config: [tsconfig.json](../../tsconfig.json). Lint config: [eslint.config.mjs](../../eslint.config.mjs). Formatter: [.prettierrc](../../.prettierrc).
+
+## Strictness (already enabled — never disable)
+
+- `strict`, `noImplicitOverride`, `noUncheckedIndexedAccess`, `experimentalDecorators`, `emitDecoratorMetadata`, `forceConsistentCasingInFileNames`.
+- **Always** add the `override` keyword when overriding a method.
+- **Always** guard array and object index accesses (`noUncheckedIndexedAccess` is active).
+
+## Promise Hygiene
+
+- Every `Promise` must be `await`-ed or have an explicit `.catch(...)`. The ESLint rule `@typescript-eslint/no-floating-promises` is active (warning) and must not be left unresolved.
+- The bootstrap pattern in `main.ts` (`void bootstrap();`) is the only acceptable fire-and-forget call.
+
+## `any` & Casts
+
+- **Avoid** `any`. The eslint rule `@typescript-eslint/no-explicit-any` is `off` as an escape hatch only. If `any` is unavoidable, add a comment explaining why.
+- `as unknown as T` casts require a justifying comment.
+
+## Naming
+
+- **Files:** `kebab-case`, suffixed with their role: `*.entity.ts`, `*.use-case.ts`, `*.repository.ts`, `*.model.ts`, `*.controller.ts`, `*.consumer.ts`, `*.adapter.ts`, `*.config.ts`. The filename must match the exported class (`create-booking.use-case.ts` exports `CreateBookingUseCase`).
+- **Classes:** `PascalCase`.
+- **Interfaces & type aliases:** `PascalCase`, **no** `I` prefix. Example: `BookingProps`, never `IBookingProps`.
+- **`const` objects:** `camelCase` with `as const` when they are maps. Example: `EventTopics`, `databaseConfig`.
+- **Kafka topic literals:** dot-separated lowercase (`appointment.created`), defined exclusively in `@ente-doctor/event-bus`.
+
+## Banned Patterns
+
+- **Never** call `console.log`, `console.warn`, or `console.error` from service code. Use the `Logger` interface from `@ente-doctor/common`. `ConsoleLogger` is the only place direct `console` usage is permitted.
+- **Never** call `eval()` or use the `Function` constructor.
+- **Never** hardcode secrets, API keys, or database URLs. Secrets are read from `process.env` only inside `config/*.config.ts`.
+- **Never** import from a `dist/` path. Use the workspace package name or TS path alias (`@ente-doctor/common`, `@ente-doctor/contracts`, `@ente-doctor/event-bus`).
+- **Never** create `*.module.ts` files. Modules live inline in `app.ts`.
+- **Never** add a stub class (no-op `execute`, always-null repository) to a Nest `@Module` until it is actually implemented.
+
+## Formatting (Prettier)
+
+- Single quotes for strings.
+- Trailing commas in every multi-line literal.
+- `endOfLine: "auto"`.
+- All formatting is enforced via the `prettier/prettier` ESLint rule at error severity. **Always** run `pnpm lint` (or `pnpm --filter @ente-doctor/<app> lint`) before committing.

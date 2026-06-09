@@ -1,0 +1,44 @@
+---
+globs: **/*.spec.ts
+alwaysApply: false
+---
+
+# Testing Conventions
+
+No tests exist in the repo today; every workspace `test` script is an `echo` stub. When introducing the first test in a package, follow these rules exactly.
+
+## Framework
+
+- **Always** use **Jest** with `ts-jest`. **Forbidden:** Vitest, Mocha, AVA, Jasmine.
+- **Always** use Jest's built-in `expect` for assertions. No `chai`, no `should`.
+- **Always** use Jest's built-in `jest.fn()` and `jest.spyOn()` for mocking. No `sinon`, no `ts-mockito`.
+
+## File Placement
+
+- `.spec.ts` files are **co-located** with the class under test. Example: `src/domain/use-cases/create-booking.use-case.spec.ts` lives beside `create-booking.use-case.ts`.
+- **Never** create a top-level `test/` or `__tests__/` directory inside an app.
+- The per-app `tsconfig.json` excludes `**/*.spec.ts` from the build; do not change that exclusion.
+
+## Module Wiring
+
+- **Never** test NestJS module wiring (`Test.createTestingModule`) in unit tests. Reserve that for integration or e2e suites in a dedicated `test/` folder added later.
+- Unit tests instantiate the class under test directly (`new CreateBookingUseCase(mockRepo)`).
+
+## Mocking
+
+- **Never** mock `@ente-doctor/common`, `@ente-doctor/contracts`, or `@ente-doctor/event-bus`. They are lightweight and have no I/O — import them directly.
+- Mock repositories and adapters through the domain interfaces they implement, not the concrete infrastructure classes.
+
+## Bootstrapping a Package for Tests
+
+Before deleting an `echo` test stub from a package's `package.json`, ensure all of the following are added by the same change:
+
+- `jest`, `@types/jest`, `ts-jest` as `devDependencies` of that package via `pnpm --filter @ente-doctor/<app> add -D`.
+- A `jest.config.ts` co-located in the package root with `rootDir: 'src'`, `testRegex: '.*\\.spec\\.ts$'`, `transform: { '^.+\\.(t|j)s$': 'ts-jest' }`, `testEnvironment: 'node'`.
+- A real `test` script (`jest`) replacing the `echo` placeholder.
+
+## Test Anatomy
+
+- One `describe` per class. Nested `describe` per method when behavior splits.
+- `beforeEach` re-instantiates the system under test so tests are independent.
+- Assertions use `await expect(...).resolves.toEqual(...)` for promise results, never bare `.then(...)` chains.

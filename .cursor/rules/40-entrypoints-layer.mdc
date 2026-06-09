@@ -1,0 +1,34 @@
+---
+globs: apps/**/src/entrypoints/**/*.ts
+alwaysApply: false
+---
+
+# Entrypoints Layer — HTTP & Kafka Adapters
+
+Entrypoints are the **outer** boundary. They translate HTTP requests and Kafka messages into use case invocations. Reference HTTP health controller: [apps/api-gateway/src/entrypoints/http/api-gateway.controller.ts](../../apps/api-gateway/src/entrypoints/http/api-gateway.controller.ts). Reference event consumer stub: [apps/booking-service/src/entrypoints/event-consumers/provider-leave.consumer.ts](../../apps/booking-service/src/entrypoints/event-consumers/provider-leave.consumer.ts).
+
+## Folder Boundaries
+
+- `entrypoints/http/` — NestJS HTTP controllers only.
+- `entrypoints/event-consumers/` — Kafka consumer handlers only.
+
+## HTTP Controllers
+
+- One concern per controller. File `<feature>.controller.ts`, class `<Feature>Controller`.
+- Decorate the class with `@Controller(<basePath>)`. Use `@Get`, `@Post`, etc., for routes.
+- Inject use cases via the constructor as **interface or class types from `domain/use-cases/`**. Never inject repositories or adapters directly.
+- Map request payloads to a `<Name>Command` immediately. Map use case results to a `BookingDto`-shaped response or other DTO from `@ente-doctor/contracts`.
+- **Never** import infrastructure repositories or external-service adapters into a controller.
+- **Never** inline localized strings; pull them from `localization` in `@ente-doctor/contracts`.
+- Every service must expose `GET /health` returning `{ service: '@ente-doctor/<name>', status: 'ok' }`.
+
+## Kafka Consumers
+
+- One handler class per topic concern. File `<topic>.consumer.ts`, class `<Topic>Consumer`.
+- The handler method receives a typed `DomainEvent<TPayload>` from `@ente-doctor/event-bus`. Never accept `unknown` without immediate type narrowing.
+- Topic strings must come from `EventTopics`. **Never** hardcode `'appointment.created'`-style literals.
+- Delegate business logic to a use case injected via the constructor. Consumers must not contain business rules.
+
+## Module Wiring
+
+- A controller or consumer is **only** added to the inline `@Module` in `app.ts` once its dependencies are real (not stubs). Reference: [apps/booking-service/src/app.ts](../../apps/booking-service/src/app.ts), which deliberately omits the unfinished `BookingController`.
